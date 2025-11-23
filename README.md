@@ -1,138 +1,85 @@
-## Đây là một hệ thống gồm 3 thành phần: Frontend, Backend & Database dùng để các bạn luyện tập việc triển khai hệ thống lên AWS sử dụng các công nghệ & kiến thức đã học.
-## Trước khi các bạn bắt đầu, đảm bảo project có thể run bởi docker-compose:
+## This is a system consisting of 3 components: Frontend, Backend & Database for practicing system deployment on AWS using the technologies & knowledge learned.
+## Before you begin, ensure the project can run with docker-compose:
 - `docker-compose -f docker-compose.yaml up -d`
-- Sau đó truy cập vào `localhost:3000` để xem website. Thử add một vài user, view list users.
+- Then access `localhost:3000` to view the website. Try adding a few users and viewing the user list.
 
-## Giải thích về cấu trúc project
+## Project Structure Explanation
 ### Frontend
-- Nodejs project có nhiệm vụ list, add, delete users.
-- Dockerfile build ra image base trên Node20, expose port 3000.
-- Docker image nhận biến môi trường: REACT_APP_API_URL là url của API Backend. vd: localhost:8080
+- Node.js project responsible for listing, adding, and deleting users.
+- Dockerfile builds an image based on Node20, exposing port 3000.
+- Docker image accepts environment variable: REACT_APP_API_URL which is the Backend API URL. e.g.: localhost:8080
 ### Backend
-- Java Spring boot có nhiệm vụ cung cấp API list, add, delete users.
-- Dockerfile file build ra image chạy trên Java OpenJDK, expose port 8080.
-- Docker image nhận biến môi trường: MONGO_URL là url của MongoDB. vd: mongodb://database:27017/dev (*do Mongo local không set password, nếu sd DocumentDB connection URL sẽ khác.)
+- Java Spring Boot responsible for providing API to list, add, and delete users.
+- Dockerfile builds an image running on Java OpenJDK, exposing port 8080.
+- Docker image accepts environment variable: MONGO_URL which is the MongoDB URL. e.g.: mongodb://database:27017/dev (*since local Mongo doesn't set password, if using DocumentDB the connection URL will be different.)
 ### Database
-- Sử dụng image Mongo:5.0, port 27017.
+- Uses Mongo:5.0 image, port 27017.
 
-### Yêu cầu của assignment: Triển khai lên AWS & cấu hình CICD theo 1 trong 2 phương án sau:
-### Lưu ý: riêng phần CICD, có thể triển khai mono repo hoặc tách frontend, backend thành 2 repo.
+### Assignment Requirements: Deploy to AWS & configure CI/CD according to one of the following 2 options:
+### Note: For the CI/CD part specifically, you can deploy as a monorepo or split frontend and backend into 2 separate repos.
 
-### Phương án 1:
-- Frontend: Serverside Rendering trên ECS, ECR.
+### Option 1:
+- Frontend: Server-side Rendering on ECS, ECR.
 - Backend: ECS, ECR.
 - Database: Document DB.
-- Load Balance: ALB
-- CICD sử dụng một trong các giải pháp: Jenkins, GithubAction hoặc CodePipeline.
-- Chiến lược deploy cho backend: Rolling update hoặc Blue-Green.
-### Phương án 2:
+- Load Balancer: ALB
+- CI/CD using one of the solutions: Jenkins, GitHub Actions, or CodePipeline.
+- Deployment strategy for backend: Rolling update or Blue-Green.
+### Option 2:
 - Frontend: S3 + CloudFront.
 - Backend: ECS, ECR.
 - Database: Document DB.
-- Load Balance: ALB
-- CICD sử dụng một trong các giải pháp: Jenkins, GithubAction hoặc CodePipeline.
-- Chiến lược deploy cho backend: Rolling update hoặc Blue-Green.
+- Load Balancer: ALB
+- CI/CD using one of the solutions: Jenkins, GitHub Actions, or CodePipeline.
+- Deployment strategy for backend: Rolling update or Blue-Green.
 
 
 
-### Phương án gợi ý cho kiến trúc 1: Frontend & Backend đều triển khai lên ECS, DB: Document DB chạy Mongo, kết hợp ALB.
+### Suggested approach for Architecture 1: Both Frontend & Backend deployed on ECS, DB: Document DB running Mongo, combined with ALB.
 
-### Step thực hiện:
-#### 1. Tạo network (VPC, Subnet), Security Group & ECS Cluster, ECR repository cho FE, BE.
-#### 2. Tạo Document DB (Mongo Engine version 5.0)
-* Tạo một Custom Parameter group từ Mongo 5.0, tắt TLS=Disabled, save lại.*Lý do: Source code cung cấp sẵn chưa work với mode TLS Enabled của Mongo.
-* Tạo một Document DB Cluster sử dụng Mongo Engine 5.0. *Trong giao diện tạo Document DB, chọn option: ```Instance Based Cluster```
-* Chọn instance size db.t3.medium, Engine: 5.0.0, Number of instances: 1
-* Parameter group: Chọn Parameter group tạo ra ở bước trên.
-* Đặt username/password cho Cluster. Lưu ý username phải khác ```admin```
-* Cấu hình Security group cần thiết cho Cluster (Port 27017)
-* Sử dụng một EC2 có cài sẵn mongosh để kết nối thử đến Database. Troubleshoot nếu có issue.  
-<span style="color: red;">*Lưu ý: DocumentDB của AWS hiện không hỗ trợ kết nối từ máy local (thông qua internet) nên bạn buộc phải tạo ra một EC2 instance cùng VPC với MongoDB, cài mongosh lên đó sau đó thử kết nối bằng câu lệnh</span> vd:  
+### Implementation Steps:
+#### 1. Create network (VPC, Subnet), Security Group & ECS Cluster, ECR repository for FE, BE.
+#### 2. Create Document DB (Mongo Engine version 5.0)
+* Create a Custom Parameter group from Mongo 5.0, disable TLS=Disabled, and save. *Reason: The provided source code doesn't work with TLS Enabled mode of Mongo.
+* Create a Document DB Cluster using Mongo Engine 5.0. *In the Document DB creation interface, select option: ```Instance Based Cluster```
+* Choose instance size db.t3.medium, Engine: 5.0.0, Number of instances: 1
+* Parameter group: Select the Parameter group created in the previous step.
+* Set username/password for the Cluster. Note that username must be different from ```admin```
+* Configure necessary Security group for the Cluster (Port 27017)
+* Use an EC2 instance with mongosh pre-installed to test connection to the Database. Troubleshoot if there are any issues.  
+<span style="color: red;">*Note: AWS DocumentDB currently does not support connections from local machines (via internet), so you must create an EC2 instance in the same VPC as MongoDB, install mongosh on it, then try connecting with the command</span> e.g.:  
 `mongosh --host linh-test-db.cluster-cwpdzas1s9oa.ap-southeast-1.docdb.amazonaws.com:27017 --username linhadmin --password`  
-Nhập password, Enter
-* Tham khảo link của AWS: `https://docs.aws.amazon.com/documentdb/latest/developerguide/troubleshooting.connecting.html#troubleshooting.cannot-connect.public-endpoints`
+Enter password, press Enter
+* Reference AWS link: `https://docs.aws.amazon.com/documentdb/latest/developerguide/troubleshooting.connecting.html#troubleshooting.cannot-connect.public-endpoints`
 
 
-#### 3. Tạo sẵn một Application Load Balancer
-- Tạo Application Load Balancer, listener port 80 (hoặc 443 nếu có SSL).
-- Tạo 2 target group: 
-- frontend-tg: Type IP, port 3000, Healthcheck default. 
-- backend-tg: Type IP, port 8080, Healthcheck: /api/students overwrite health checkport 8080
-- Cấu hình trên Application Load Balancer để rule /api/* trỏ vào backend-tg, còn lại default trỏ vào frontend-tg
+#### 3. Create an Application Load Balancer
+- Create Application Load Balancer, listener port 80 (or 443 if SSL is available).
+- Create 2 target groups: 
+- frontend-tg: Type IP, port 3000, default Healthcheck. 
+- backend-tg: Type IP, port 8080, Healthcheck: /api/students overwrite health check port 8080
+- Configure the Application Load Balancer so that rule /api/* points to backend-tg, and the rest defaults to frontend-tg
 
-#### 4. ⁠Triển khai Backend
-- Build Dockerimage và push lên ECR. 
-- Tạo Backend Task definition, lưu ý overwrite `MONGO_URL` cho backend (lưu ý password đang lưu plaintex, cần cải thiện trong tương lai sử dụng Secret Manager)
-- Ví dụ: ```mongodb://linhadmin:thisismypassword@linh-mongo.cluster-cwpdzas1s9oa.ap-southeast-1.docdb.amazonaws.com:27017/dev```
-- Tạo Backend Service, chọn backend-target-group, listener tương ứng.
-- Test API vd GET ```<alb-domain>:80/api/students```, kết quả trả về danh sách students theo dạng Json là OK.
+#### 4. Deploy Backend
+- Build Docker image and push to ECR. 
+- Create Backend Task definition, note to overwrite `MONGO_URL` for backend (note that password is stored in plaintext, needs improvement in the future using Secret Manager)
+- Example: ```mongodb://linhadmin:thisismypassword@linh-mongo.cluster-cwpdzas1s9oa.ap-southeast-1.docdb.amazonaws.com:27017/dev```
+- Create Backend Service, select backend-target-group, corresponding listener.
+- Test API e.g. GET ```<alb-domain>:80/api/students```, result should return a list of students in JSON format.
 
-#### 5. Triển khai Frontend
-- Build Frontend tạo ra Docker image, push lên ECR.
+#### 5. Deploy Frontend
+- Build Frontend to create Docker image, push to ECR.
 
-- Tạo Frontend Task definition, lưu ý overwrite `REACT_APP_API_URL` để frontend nhận diện được backend API theo cấu trúc: ```<alb-domain>:80```
-- Ví dụ: ```http://linh-test-alb-581342174.ap-southeast-1.elb.amazonaws.com:80```
+- Create Frontend Task definition, note to overwrite `REACT_APP_API_URL` so frontend can recognize the backend API with structure: ```<alb-domain>:80```
+- Example: ```http://linh-test-alb-581342174.ap-southeast-1.elb.amazonaws.com:80```
 
-- Tạo Frontend Service, chọn frontend-target-group, listener tương ứng.
+- Create Frontend Service, select frontend-target-group, corresponding listener.
 
-#### 6. Test kết nối tới ALB & truy cập ứng dụng, thử add/delete user
-- URL sample: ```http://linh-test-alb-581342174.ap-southeast-1.elb.amazonaws.com:80```
-#### 7. Optional: Cấu hình CICD cho repo (monorepo hoặc tách thành 2 repo FE, BE) sử dụng kiến thức đã học.
-- Các bạn có thể sử dụng Jenkins hoặc CodePipeline để cấu hình CICD cho frontend & backend repository.
-- Với mỗi repository, cấu hình 2 pipeline sau:
-  + Pipeline 1: Tự động build & deploy mỗi khi code được merge/push lên nhánh develop.
-  + Pipeline 2: Manual build & deploy với branch/tag được chỉ định.
-- Do hạn chế về số lượng resource, cả 2 pipeline sẽ cùng deploy lên một target environment. Trong thực tế dự án, 2 pipeline sẽ deploy lên 2 target environment khác nhau.
-
-### Phương án gợi ý cho kiến trúc 2: Frontend: S3 + CloudFront, Backend: ECS, DB: Document DB chạy Mongo, kết hợp ALB.
-#### 1. Tạo network (VPC, Subnet), Security Group & ECS Cluster, ECR repository cho BE.
-#### 2. Tạo Document DB (Mongo Engine version 5.0)
-* Tạo một Custom Parameter group từ Mongo 5.0, tắt TLS=Disabled, save lại.*Lý do: Source code cung cấp sẵn chưa work với mode TLS Enabled của Mongo.
-* Tạo một Document DB Cluster sử dụng Mongo Engine 5.0. *Trong giao diện tạo Document DB, chọn option: ```Instance Based Cluster```
-* Chọn instance size db.t3.medium, Engine: 5.0.0, Number of instances: 1
-* Parameter group: Chọn Parameter group tạo ra ở bước trên.
-* Đặt username/password cho Cluster. Lưu ý username phải khác ```admin```
-* Cấu hình Security group cần thiết cho Cluster (Port 27017)
-* Sử dụng một EC2 có cài sẵn mongosh để kết nối thử đến Database. Troubleshoot nếu có issue.  
-<span style="color: red;">*Lưu ý: DocumentDB của AWS hiện không hỗ trợ kết nối từ máy local (thông qua internet) nên bạn buộc phải tạo ra một EC2 instance cùng VPC với MongoDB, cài mongosh lên đó sau đó thử kết nối bằng câu lệnh</span> vd:  
-`mongosh --host linh-test-db.cluster-cwpdzas1s9oa.ap-southeast-1.docdb.amazonaws.com:27017 --username linhadmin --password`  
-Nhập password, Enter
-* Tham khảo link của AWS: `https://docs.aws.amazon.com/documentdb/latest/developerguide/troubleshooting.connecting.html#troubleshooting.cannot-connect.public-endpoints`
-
-#### 3. Tạo một Application Load Balancer
-- Tạo Application Load Balancer, listener port 80 (hoặc 443 nếu có SSL).
-- Tạo 1 target group: 
-    - backend-tg: Type IP, port 8080, Healthcheck: /api/students overwrite health checkport 8080
-- Cấu hình trên Application Load Balancer để rule /api/* trỏ vào backend-tg
-
-#### 4. ⁠Triển khai Backend
-- Build Dockerimage và push lên ECR. 
-- Tạo Backend Task definition, lưu ý overwrite `MONGO_URL` cho backend (lưu ý password đang lưu plaintex, cần cải thiện trong tương lai sử dụng Secret Manager)
-- Ví dụ: ```mongodb://linhadmin:thisismypassword@linh-mongo.cluster-cwpdzas1s9oa.ap-southeast-1.docdb.amazonaws.com:27017/dev```
-- Tạo Backend Service, chọn backend-target-group, listener tương ứng.
-- Test API vd GET ```<alb-domain>:80/api/students```, kết quả trả về danh sách students theo dạng Json là OK.
-
-#### 5. Triển khai Frontend
-- Tạo một S3 bucket, enable Static web hosting, setting các bucket policy cần thiết để có thể truy cập.
-- Upload một file index.html bất kỳ, test việc truy cập website.
-- Tạo một CloudFront distribution, add S3 bucket ở trên làm origin, test việc truy cập.
-- trong thư mục `react-student-management` build frontend web.
-    - Chỉnh sửa file `.env`, modify `REACT_APP_API_URL` sửa thành URL của ALB theo cấu trúc: ```<alb-domain>:80/api```
-    - Ví dụ: ```http://linh-test-alb-581342174.ap-southeast-1.elb.amazonaws.com:80```
-    - Build thành static file sd lệnh `npm run build`
-    - Upload toàn bộ static output lên s3 bucket
-    - Test việc truy cập website, debug F12 trên Browser nếu cần thiết.
-
-#### 6. Test kết nối tới Frontend Web & truy cập ứng dụng, thử add/delete user
-- URL sample: ```https://xxxx.cloudfront.net```
-
-#### 7. Optional: Cấu hình CICD cho repo (monorepo hoặc tách thành 2 repo FE, BE) sử dụng kiến thức đã học.
-- Các bạn có thể sử dụng Jenkins hoặc CodePipeline để cấu hình CICD cho frontend & backend repository.
-- Với mỗi repository, cấu hình 2 pipeline sau:
-  + Pipeline 1: Tự động build & deploy mỗi khi code được merge/push lên nhánh develop.
-  + Pipeline 2: Manual build & deploy với branch/tag được chỉ định.
-- Do hạn chế về số lượng resource, cả 2 pipeline sẽ cùng deploy lên một target environment. Trong thực tế dự án, 2 pipeline sẽ deploy lên 2 target environment khác nhau.
-
-
-## Chúc các bạn deploy thành công!
-
+#### 6. Test connection to ALB & access the application, try adding/deleting users
+- Sample URL: ```http://linh-test-alb-581342174.ap-southeast-1.elb.amazonaws.com:80```
+#### 7. Optional: Configure CI/CD for the repo (monorepo or split into 2 repos FE, BE) using the knowledge learned.
+- You can use Jenkins or CodePipeline to configure CI/CD for frontend & backend repositories.
+- For each repository, configure the following 2 pipelines:
+  + Pipeline 1: Automatically build & deploy whenever code is merged/pushed to the develop branch.
+  + Pipeline 2: Manual build & deploy with specified branch/tag.
+- Due to resource limitations, both pipelines will deploy to the same target environment. In real-world projects, the 2 pipelines would deploy to 2 different target environments.
